@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "427356733681",
+    "project_id": "riches-52f7d",
+    "storage_bucket": "riches-52f7d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:427356733681:android:bf4f768e3c964617a96950",
+        "android_client_info": {
+          "package_name": "com.example.asset_secretary"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSuXVMRmiJmUhg1wM5hhZg4zlq6JENmiA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
