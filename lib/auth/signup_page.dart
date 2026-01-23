@@ -5,14 +5,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_providers.dart';
 import 'signup_service.dart';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-
-
-final firestoreProvider =
-    Provider<FirebaseFirestore>((ref) => FirebaseFirestore.instance);
-
 final signUpServiceProvider = Provider<SignUpService>((ref) {
-  return SignUpService(ref.read(firebaseAuthProvider), ref.read(firestoreProvider));
+  return SignUpService(
+    ref.read(firebaseAuthProvider),
+    ref.read(firestoreProvider),
+  );
 });
 
 

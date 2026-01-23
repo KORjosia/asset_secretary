@@ -2,73 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
-import '../../utils/money_input_formatter.dart';
-import '../../data/local_store.dart';
+
 import '../../models/auto_transfer.dart';
-import '../home/home_screen.dart';
+import '../../providers/transfers_provider.dart';
+import '../../providers/goal_provider.dart';
+import '../../utils/money_input_formatter.dart';
 
 Color _transferTileColor(AutoTransferPlan p) {
-  if (!p.isActive) {
-    return Colors.grey.shade200; // 비활성
-  }
-  if (p.type == TransferType.expense) {
-    return Colors.pink.shade50; // 지출
-  }
-  return Colors.lightBlue.shade50; // 저축
+  if (!p.isActive) return Colors.grey.shade200;
+  if (p.type == TransferType.expense) return Colors.pink.shade50;
+  return Colors.lightBlue.shade50;
 }
 
 final _currency = NumberFormat.currency(locale: 'ko_KR', symbol: '₩');
 
-final transfersProvider =
-    StateNotifierProvider<TransfersController, List<AutoTransferPlan>>((ref) {
-  return TransfersController()..load();
-});
-
-/// ✅ 목표 달성에 쓰는 월 합계: "활성 + 저축(saving)"만
-final monthlyTransferSumProvider = Provider<int>((ref) {
-
-  final plans = ref.watch(transfersProvider);
-
-  final sortedPlans = [...plans]..sort((a, b) {
-    int rank(AutoTransferPlan p) {
-      if (!p.isActive) return 2; // 비활성 최하
-      return (p.type == TransferType.saving) ? 0 : 1; // 저축 0, 지출 1
-    }
-
-    final ra = rank(a);
-    final rb = rank(b);
-    if (ra != rb) return ra.compareTo(rb);
-
-    // (선택) 같은 그룹 내에서는 날짜(dayOfMonth) 오름차순
-    final d = a.dayOfMonth.compareTo(b.dayOfMonth);
-    if (d != 0) return d;
-
-    // (선택) 그래도 같으면 이름순
-    return a.name.compareTo(b.name);
-  });
-
-
-    final activeSaving = plans.where(
-      (p) => p.isActive && p.type == TransferType.saving,
-    );
-    return activeSaving.fold<int>(0, (sum, p) => sum + p.amountWon);
-  });
-
-  /// (선택) 월 지출 합계: "활성 + 지출(expense)"만
-  final monthlyExpenseSumProvider = Provider<int>((ref) {
-    final plans = ref.watch(transfersProvider);
-    final activeExpense = plans.where(
-      (p) => p.isActive && p.type == TransferType.expense,
-    );
-    return activeExpense.fold<int>(0, (sum, p) => sum + p.amountWon);
-  });
-  
 
 int _monthsToGoal({required int remainingWon, required int monthly}) {
   if (remainingWon <= 0) return 0;
   if (monthly <= 0) return 1 << 30; // 사실상 무한
   return (remainingWon / monthly).ceil();
 }
+
 
 /// delay = afterMonths - beforeMonths
 /// - null: afterMonthly가 0 → 예측 불가(사실상 달성 불가)
@@ -88,38 +42,6 @@ int? _delayMonths({
   return d <= 0 ? 0 : d;
 }
 
-class TransfersController extends StateNotifier<List<AutoTransferPlan>> {
-  TransfersController() : super(const []);
-  static const _key = 'transfers_v1';
-
-  Future<void> load() async {
-    final raw = LocalStore.get<List>(_key);
-    if (raw == null) return;
-    state = raw
-        .map((e) => AutoTransferPlan.fromJson(Map<dynamic, dynamic>.from(e)))
-        .toList();
-  }
-
-  Future<void> save() async =>
-      LocalStore.set(_key, state.map((e) => e.toJson()).toList());
-
-  Future<void> add(AutoTransferPlan p) async {
-    state = [...state, p];
-    await save();
-  }
-
-  Future<void> update(AutoTransferPlan p) async {
-    state = [
-      for (final x in state) if (x.id == p.id) p else x,
-    ];
-    await save();
-  }
-
-  Future<void> remove(String id) async {
-    state = state.where((x) => x.id != id).toList();
-    await save();
-  }
-}
 
 class TransfersScreen extends ConsumerWidget {
   const TransfersScreen({super.key});
@@ -281,7 +203,7 @@ class TransfersScreen extends ConsumerWidget {
               ),
               TextField(
                 controller: amountCtrl,
-                decoration: const InputDecoration(labelText: '목표 금액(원)'),
+                decoration: const InputDecoration(labelText: '자동이체 금액(원)'),
                 keyboardType: TextInputType.number,
                 inputFormatters: [MoneyInputFormatter()],
               ),
@@ -410,7 +332,7 @@ class TransfersScreen extends ConsumerWidget {
       id: existing?.id ?? const Uuid().v4(),
       name: name,
       amountWon: amount,
-      dayOfMonth: day.clamp(1, 31),
+      dayOfMonth: day.clamp(1, 28),
       isActive: active,
       type: type,
     );
