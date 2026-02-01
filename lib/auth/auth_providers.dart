@@ -1,3 +1,5 @@
+//C:\Users\user\asset_secretary\lib\auth\auth_providers.dart
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';

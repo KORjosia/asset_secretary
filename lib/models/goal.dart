@@ -1,3 +1,5 @@
+//asset_secretary\lib\models\goal.dart
+
 class Goal {
   final String id;
   final String title;

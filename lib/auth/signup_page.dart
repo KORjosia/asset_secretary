@@ -1,7 +1,8 @@
+//C:\Users\user\asset_secretary\lib\auth\signup_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'auth_providers.dart';
 import 'signup_service.dart';
 

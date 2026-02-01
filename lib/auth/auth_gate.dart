@@ -1,3 +1,5 @@
+//C:\Users\user\asset_secretary\lib\auth\auth_gate.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

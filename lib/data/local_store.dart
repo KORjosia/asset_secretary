@@ -1,3 +1,5 @@
+//C:\Users\user\asset_secretary\lib\data\local_store.dart
+
 import 'package:hive_flutter/hive_flutter.dart';
 
 class LocalStore {
