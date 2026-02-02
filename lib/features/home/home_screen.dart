@@ -17,8 +17,8 @@ import '../../providers/firebase_user_doc_provider.dart';
 
 
 
-final _currency = NumberFormat.currency(locale: 'ko_KR', symbol: '₩');
-final _date = DateFormat('yyyy.MM.dd');
+//final _currency = NumberFormat.currency(locale: 'ko_KR', symbol: '₩');
+//final _date = DateFormat('yyyy.MM.dd');
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
