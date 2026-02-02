@@ -12,6 +12,10 @@ import '../../providers/savings_goal_metrics_provider.dart';
 import '../../utils/money_input_formatter.dart';
 import '../../widgets/allocation_bar.dart';
 import '../../widgets/radar_chart.dart';
+import '../profile/profile_screen.dart';
+import '../../providers/firebase_user_doc_provider.dart';
+
+
 
 final _currency = NumberFormat.currency(locale: 'ko_KR', symbol: '₩');
 final _date = DateFormat('yyyy.MM.dd');
@@ -49,7 +53,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _editMonthlyIncome(BuildContext context) async {
+  /*(Future<void> _editMonthlyIncome(BuildContext context) async {
     final profile = ref.read(userProfileProvider);
     final ctrl = TextEditingController(
       text: profile.monthlyIncomeWon > 0 ? profile.monthlyIncomeWon.toString() : '',
@@ -76,7 +80,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final won = int.tryParse(ctrl.text.replaceAll(',', '').trim()) ?? 0;
     await ref.read(userProfileProvider.notifier).setMonthlyIncome(won);
-  }
+  }*/
 
   Future<void> _editGoalTarget(BuildContext context) async {
     final goal = ref.read(savingsGoalProvider);
@@ -117,6 +121,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final goal = ref.watch(savingsGoalProvider);
     final goalMetrics = ref.watch(savingsGoalMetricsProvider);
+    final nickname = ref.watch(nicknameProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('자산 비서')),
@@ -128,85 +133,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Row(
               children: [
                 InkWell(
-                  onTap: () => _editMonthlyIncome(context),
-                  child: CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.grey.shade200,
-                    child: const Icon(Icons.person_outline),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    ),
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Colors.grey.shade200,
+                      child: const Icon(Icons.person_outline),
+                    ),
                   ),
-                ),
+
                 const SizedBox(width: 10),
-                const Text('프로필', style: TextStyle(fontWeight: FontWeight.w800)),
+                Text(
+                  nickname.isEmpty ? '부자되세요!' : '$nickname님 부자되세요!',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  ),
                 const Spacer(),
               ],
             ),
 
-            const SizedBox(height: 12),
-
-            // ✅ 저축 목표 (있던 영역 유지)
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue.shade600, width: 2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          '저축 목표',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.blue),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => _editGoalTarget(context),
-                        icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.blue),
-                        label: Text(goal.targetWon > 0 ? '수정' : '설정',
-                            style: const TextStyle(color: Colors.blue)),
-                      ),
-                    ],
+            // ✅ (NEW) 저축 목표 컴팩트 카드 (프로필 하단, 포트폴리오 상단)
+            if (goal.targetWon > 0)
+              SavingsGoalCompactCard(
+                targetWon: goalMetrics.targetWon,
+                currentWon: goalMetrics.currentWon,
+                progress: goalMetrics.progress,
+                eta: goalMetrics.eta,
+                onTap: () => _editGoalTarget(context),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 40),
+                child: Card(
+                  child: ListTile(
+                    dense: true,
+                    title: const Text('저축 목표를 설정해 주세요', style: TextStyle(fontWeight: FontWeight.w900)),
+                    subtitle: const Text('목표금액, 달성률, 예상 달성날짜가 표시됩니다.'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _editGoalTarget(context),
                   ),
-                  const SizedBox(height: 6),
-
-                  if (goal.targetWon <= 0)
-                    const Text(
-                      '저축 목표금액 설정 후\n달성률 표시 and 달성 예상 날짜 계산',
-                      style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w700),
-                    )
-                  else ...[
-                    Text('목표: ${_currency.format(goalMetrics.targetWon)}',
-                        style: const TextStyle(fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 6),
-                    Text('현재(목표계좌 잔액 합): ${_currency.format(goalMetrics.currentWon)}'),
-                    Text('이번달(목표계좌 입금 합): ${_currency.format(goalMetrics.monthlyInflowWon)}'),
-                    const SizedBox(height: 10),
-                    LinearProgressIndicator(value: goalMetrics.progress),
-                    const SizedBox(height: 8),
-                    Text(
-                      '달성률: ${(goalMetrics.progress * 100).toStringAsFixed(1)}%  •  남은금액: ${_currency.format(goalMetrics.remainingWon)}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      goalMetrics.remainingWon <= 0
-                          ? '✅ 이미 목표를 달성했어요!'
-                          : (goalMetrics.eta == null
-                              ? '⚠️ 이번달 목표계좌 입금이 0원이라 예상 날짜를 계산할 수 없어요.'
-                              : '📅 예상 달성일: ${_date.format(goalMetrics.eta!)}'),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: goalMetrics.eta == null ? Colors.blue : Colors.black,
-                      ),
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 5),
 
             // ✅ 포트폴리오(막대 + 오각형) 카드
             Card(
@@ -231,7 +201,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: 12),
                     RadarChart(
                       values: radar.toList(),
-                      labels: const ['안정성', '성장성', '유동성', '리스크', '부채관리'],
+                      labels: const ['투자', '저축', '고정 지출', '생활비', '기타'],
                     ),
                   ],
                 ),
@@ -332,6 +302,102 @@ class _HalfActionCard extends StatelessWidget {
                     Text(subtitle, style: const TextStyle(fontSize: 12)),
                   ],
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SavingsGoalCompactCard extends StatelessWidget {
+  final int targetWon;
+  final int currentWon;
+  final double progress; // 0~1
+  final DateTime? eta;
+  final VoidCallback onTap;
+
+  const SavingsGoalCompactCard({
+    super.key,
+    required this.targetWon,
+    required this.currentWon,
+    required this.progress,
+    required this.eta,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(locale: 'ko_KR', symbol: '₩');
+    final dateFmt = DateFormat('yyyy.MM.dd');
+
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          // 🔽 세로 패딩 줄임
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // ✅ 내용만큼만 높이 사용
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1줄: 목표 / 저축액
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '목표 ${currency.format(targetWon)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '저축액: ${currency.format(currentWon)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 4), // 🔽 줄임
+
+              // 2줄: 막대
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 8, // 🔽 살짝 얇게
+                ),
+              ),
+
+              const SizedBox(height: 6), // 🔽 줄임
+
+              // 3줄: 달성률 / 예상일
+              Row(
+                children: [
+                  Text(
+                    '${(progress * 100).toStringAsFixed(1)}%',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    eta == null
+                        ? '예상일 —'
+                        : '예상 ${dateFmt.format(eta!)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

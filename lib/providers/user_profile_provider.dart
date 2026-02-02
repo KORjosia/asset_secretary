@@ -1,4 +1,3 @@
-// 위치: lib/providers/user_profile_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/local_store.dart';
 import '../models/user_profile.dart';
@@ -9,11 +8,7 @@ final userProfileProvider =
 });
 
 class UserProfileController extends StateNotifier<UserProfile> {
-  UserProfileController()
-      : super(const UserProfile(
-          monthlyIncomeWon: 0,
-          paydayDay: 25,
-        ));
+  UserProfileController() : super(UserProfile.empty());
 
   static const _key = 'user_profile_v1';
 
@@ -24,13 +19,18 @@ class UserProfileController extends StateNotifier<UserProfile> {
 
   Future<void> save() async => LocalStore.set(_key, state.toJson());
 
+  Future<void> updateProfile(UserProfile next) async {
+    state = next;
+    await save();
+  }
+
   Future<void> setMonthlyIncome(int won) async {
     state = state.copyWith(monthlyIncomeWon: won.clamp(0, 1 << 60));
     await save();
   }
 
-  Future<void> setPaydayDay(int day) async {
-    state = state.copyWith(paydayDay: day.clamp(1, 28));
+  Future<void> setSavingsGoal(int won) async {
+    state = state.copyWith(savingsGoalWon: won.clamp(0, 1 << 60));
     await save();
   }
 }
