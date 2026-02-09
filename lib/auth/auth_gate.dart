@@ -3,13 +3,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../screens/login_page.dart';
 import '../home/home_screen.dart';
 import '../onboarding/info_page.dart';
 import '../onboarding/goal_page.dart';
 import '../onboarding/mentor_page.dart';
 import '../onboarding/consult_page.dart';
 import '../services/firestore_service.dart';
+import '../screens/auth_landing_page.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -24,7 +24,7 @@ class AuthGate extends StatelessWidget {
         }
 
         final user = authSnap.data;
-        if (user == null) return const LoginPage();
+        if (user == null) return const AuthLandingPage();
 
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
@@ -36,10 +36,17 @@ class AuthGate extends StatelessWidget {
             final exists = docSnap.data?.exists == true;
             final data = docSnap.data?.data();
 
-            // 혹시 user 문서가 없으면(비정상 케이스) 최소 문서 생성 후 info로 보냄
+            // ✅ users 문서가 없으면 "생성 완료까지 기다렸다가" 다시 보여주기
             if (!exists || data == null) {
-              FirestoreService.ensureUserDoc(user.uid);
-              return const InfoPage(mode: InfoPageMode.onboarding);
+              return FutureBuilder(
+                future: FirestoreService.ensureUserDoc(user.uid),
+                builder: (context, f) {
+                  if (f.connectionState != ConnectionState.done) {
+                    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+                  }
+                  return const InfoPage(mode: InfoPageMode.onboarding);
+                },
+              );
             }
 
             final step = (data['onboardingStep'] as String?) ?? 'info';
