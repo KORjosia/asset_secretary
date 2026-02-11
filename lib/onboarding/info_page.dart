@@ -70,52 +70,59 @@ class _InfoPageState extends State<InfoPage> {
   }
 
   Future<void> _prefill() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
 
-    final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    final data = snap.data() ?? {};
-    final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
-
-    _ageCtrl.text = (profile['age'] ?? '').toString();
-    _jobCtrl.text = (profile['job'] ?? '').toString();
-    _regionCtrl.text = (profile['region'] ?? '').toString();
-
-    final mainIncome = (profile['mainIncome'] as num?)?.toInt() ?? 0;
-    final subIncome = (profile['subIncome'] as num?)?.toInt() ?? 0;
-
-    if (mainIncome > 0) {
-      _mainIncomeCtrl.text = ThousandsFormatter().formatEditUpdate(
-        const TextEditingValue(text: ''),
-        TextEditingValue(text: mainIncome.toString()),
-      ).text;
-    }
-    if (subIncome > 0) {
-      _subIncomeCtrl.text = ThousandsFormatter().formatEditUpdate(
-        const TextEditingValue(text: ''),
-        TextEditingValue(text: subIncome.toString()),
-      ).text;
-    }
-
-    final tools = (profile['managementTools'] as Map<String, dynamic>?) ?? {};
-    for (final k in tools.keys) {
-      if (!assetItems.contains(k)) continue;
-      _selectedAssets.add(k);
-
-      final v = (tools[k] is num) ? (tools[k] as num).toInt() : 0;
-      if (v > 0) {
-        _assetCtrls[k]!.text = ThousandsFormatter().formatEditUpdate(
-          const TextEditingValue(text: ''),
-          TextEditingValue(text: v.toString()),
-        ).text;
-      } else {
-        _assetCtrls[k]!.text = '';
+      // ✅ 핵심: user가 null이어도 로딩은 풀어줘야 무한로딩 안 걸림
+      if (user == null) {
+        if (mounted) setState(() => _loading = false);
+        return;
       }
-    }
-    
 
-    if (mounted) setState(() => _loading = false);
+     final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final data = snap.data() ?? {};
+      final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
+
+      _ageCtrl.text = (profile['age'] ?? '').toString();
+      _jobCtrl.text = (profile['job'] ?? '').toString();
+      _regionCtrl.text = (profile['region'] ?? '').toString();
+
+      final mainIncome = (profile['mainIncome'] as num?)?.toInt() ?? 0;
+      final subIncome = (profile['subIncome'] as num?)?.toInt() ?? 0;
+
+      if (mainIncome > 0) {
+        _mainIncomeCtrl.text = ThousandsFormatter().formatEditUpdate(
+          const TextEditingValue(text: ''),
+          TextEditingValue(text: mainIncome.toString()),
+        ).text;
+      }
+      if (subIncome > 0) {
+        _subIncomeCtrl.text = ThousandsFormatter().formatEditUpdate(
+          const TextEditingValue(text: ''),
+          TextEditingValue(text: subIncome.toString()),
+        ).text;
+      }
+
+      final tools = (profile['managementTools'] as Map<String, dynamic>?) ?? {};
+      for (final k in tools.keys) {
+        if (assetItems.contains(k)) _selectedAssets.add(k);
+      }
+    } catch (e) {
+      // ✅ 에러가 나도 무조건 로딩 풀고, 원인 메시지 보여주기
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('정보 불러오기 실패: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
+
 
   void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
 

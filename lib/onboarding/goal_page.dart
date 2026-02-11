@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 
 import 'money_formatter.dart';
 import '../services/firestore_service.dart';
+import '../auth/auth_gate.dart';
+
 
 enum GoalPageMode { onboarding, edit }
 
@@ -145,13 +147,7 @@ class _GoalPageState extends State<GoalPage> {
     final amount = parseMoney(_amountCtrl.text);
     final estate = _estateCtrl.text.trim();
 
-    // 목표 타입 결정(둘 다 입력되면 부동산 우선)
-    final String type;
-    if (estate.isNotEmpty) {
-      type = 'real_estate';
-    } else {
-      type = 'amount';
-    }
+    final String type = estate.isNotEmpty ? 'real_estate' : 'amount';
 
     final risk = _calcRiskLevel();
     final months = _calcDurationMonths();
@@ -161,28 +157,41 @@ class _GoalPageState extends State<GoalPage> {
       final goalPayload = <String, dynamic>{
         'type': type,
         'targetAmount': amount > 0 ? amount : 0,
-        'riskLevel': risk, // 기존 구조 호환(1~5)
-        'durationMonths': months, // 기존 구조 호환(1~60)
-        // UI 기반 추가 저장(테스트 원본)
+        'riskLevel': risk,
+        'durationMonths': months,
         'quizQ1': _q1,
         'quizQ2': _q2,
         'quizQ3': _q3,
-        if (type == 'real_estate') 'buildingName': estate, // 자유 입력을 buildingName에 저장
+        if (type == 'real_estate') 'buildingName': estate,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
+      // ✅ 5/6 완료 후 mentor로
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'goal': goalPayload,
-        if (widget.mode == GoalPageMode.onboarding) 'onboardingStep': 'done', // ✅ 5/5 완료 후 홈
+        if (widget.mode == GoalPageMode.onboarding) 'onboardingStep': 'mentor',
+        'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       if (widget.mode == GoalPageMode.onboarding) {
-        await FirestoreService.setOnboardingStep(user.uid, 'done');
+        // (선택) service도 쓰고 싶으면 유지 가능
+        await FirestoreService.setOnboardingStep(user.uid, 'mentor');
+
+        _snack('목표 설정 완료!');
+
+        // ✅ 핵심: AuthGate로 스택 리셋 → AuthGate가 step=mentor 감지 → MentorPage 즉시 노출
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const AuthGate()),
+            (route) => false,
+          );
+        }
+        return;
       }
 
-      _snack('가입 완료!');
+      // edit 모드면 그냥 저장 후 뒤로
+      _snack('저장 완료!');
       if (widget.mode == GoalPageMode.edit && mounted) Navigator.pop(context);
-      // onboarding은 AuthGate가 done 보고 Home으로 자동 이동
     } catch (e) {
       _snack('저장 실패: $e');
     } finally {
@@ -190,7 +199,8 @@ class _GoalPageState extends State<GoalPage> {
     }
   }
 
-  Widget _topProgress() {
+
+    Widget _topProgress() {
     if (widget.mode == GoalPageMode.edit) return const SizedBox.shrink();
 
     return Padding(
@@ -203,14 +213,14 @@ class _GoalPageState extends State<GoalPage> {
               Text('투자 성향 & 목표',
                   style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 12, fontWeight: FontWeight.w700)),
               Spacer(),
-              Text('5/5', style: TextStyle(color: Color(0x99FFFFFF), fontWeight: FontWeight.w700)),
+              Text('5/6', style: TextStyle(color: Color(0x99FFFFFF), fontWeight: FontWeight.w700)),
             ],
           ),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: const LinearProgressIndicator(
-              value: 1.0,
+              value: 5 / 6, // ✅ 0.8333...
               minHeight: 6,
               backgroundColor: Color(0x1FFFFFFF),
               valueColor: AlwaysStoppedAnimation<Color>(accent),
@@ -220,6 +230,7 @@ class _GoalPageState extends State<GoalPage> {
       ),
     );
   }
+
 
   Widget _radioLine({
     required int value,

@@ -4,17 +4,69 @@ import 'package:flutter/material.dart';
 
 import '../onboarding/info_page.dart';
 import '../onboarding/goal_page.dart';
+import '../community/pages/community_feed_page.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   static const bgTop = Color(0xFF0A1730);
   static const bgBottom = Color(0xFF070F1F);
   static const accent = Color(0xFF0AA3E3);
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int index = 2;
+
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // ✅ 페이지를 1번만 생성해서 유지(탭 전환 시 재로딩 방지)
+    _pages = const [
+      _PlaceholderPage(title: '투자'),
+      _PlaceholderPage(title: '저축'),
+      _HomeTab(),
+      CommunityFeedPage(),
+      _PlaceholderPage(title: '자산'),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: index,
+        children: _pages,
+      ),
+      bottomNavigationBar: _BottomNavMock(
+        index: index,
+        onChanged: (i) => setState(() => index = i),
+      ),
+    );
+  }
+}
+
+
+
+class _PlaceholderPage extends StatelessWidget {
+  const _PlaceholderPage({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text(title, style: const TextStyle(fontSize: 20)));
+  }
+}
+class _HomeTab extends StatelessWidget {
+  const _HomeTab();
+
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
-    // ✅ AuthGate가 로그인/랜딩으로 이동
   }
 
   @override
@@ -26,7 +78,7 @@ class HomeScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [bgTop, bgBottom],
+            colors: [HomeScreen.bgTop, HomeScreen.bgBottom],
           ),
         ),
         child: SafeArea(
@@ -40,7 +92,6 @@ class HomeScreen extends StatelessWidget {
                   );
                 },
                 onProfileTap: () async {
-                  // 편의상 프로필 탭 = 로그아웃 메뉴
                   final r = await showModalBottomSheet<String>(
                     context: context,
                     backgroundColor: const Color(0xFF0B162C),
@@ -57,7 +108,6 @@ class HomeScreen extends StatelessWidget {
                   if (r == 'logout') {
                     await _logout();
                   } else if (r == 'editInfo') {
-                    // 홈에서 정보 수정
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const InfoPage(mode: InfoPageMode.edit)),
@@ -95,7 +145,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              _TopMentorCard(),
+              const _TopMentorCard(),
 
               const SizedBox(height: 14),
 
@@ -129,12 +179,10 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ),
-
-      // UI용 하단바(탭 연결은 추후)
-      bottomNavigationBar: const _BottomNavMock(),
     );
   }
 }
+
 
 class _TopBar extends StatelessWidget {
   const _TopBar({
@@ -495,15 +543,15 @@ class _GoalProgressEmptyCard extends StatelessWidget {
   }
 }
 
-class _BottomNavMock extends StatefulWidget {
-  const _BottomNavMock();
+class _BottomNavMock extends StatelessWidget {
+  const _BottomNavMock({
+    super.key,
+    required this.index,
+    required this.onChanged,
+  });
 
-  @override
-  State<_BottomNavMock> createState() => _BottomNavMockState();
-}
-
-class _BottomNavMockState extends State<_BottomNavMock> {
-  int index = 2; // 홈 강조(가운데)
+  final int index;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -519,11 +567,11 @@ class _BottomNavMockState extends State<_BottomNavMock> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _navItem(icon: Icons.calendar_month_outlined, label: '달력', i: 0),
-              _navItem(icon: Icons.analytics_outlined, label: '분석', i: 1),
+              _navItem(icon: Icons.calendar_month_outlined, label: '부자', i: 0),
+              _navItem(icon: Icons.analytics_outlined, label: '저축', i: 1),
               _navCenter(icon: Icons.home_rounded, label: '홈', i: 2),
               _navItem(icon: Icons.chat_bubble_outline, label: '커뮤니티', i: 3),
-              _navItem(icon: Icons.person_outline, label: '마이', i: 4),
+              _navItem(icon: Icons.person_outline, label: '자산', i: 4),
             ],
           ),
         ),
@@ -534,13 +582,18 @@ class _BottomNavMockState extends State<_BottomNavMock> {
   Widget _navItem({required IconData icon, required String label, required int i}) {
     final selected = index == i;
     return GestureDetector(
-      onTap: () => setState(() => index = i),
+      onTap: () => onChanged(i),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: selected ? const Color(0xFF0AA3E3) : const Color(0x99FFFFFF), size: 22),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: selected ? const Color(0xFF0AA3E3) : const Color(0x99FFFFFF), fontSize: 10, fontWeight: FontWeight.w700)),
+          Text(label,
+              style: TextStyle(
+                color: selected ? const Color(0xFF0AA3E3) : const Color(0x99FFFFFF),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              )),
         ],
       ),
     );
@@ -549,24 +602,29 @@ class _BottomNavMockState extends State<_BottomNavMock> {
   Widget _navCenter({required IconData icon, required String label, required int i}) {
     final selected = index == i;
     return GestureDetector(
-      onTap: () => setState(() => index = i),
+      onTap: () => onChanged(i),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFF0AA3E3),
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: const [
+            decoration: const BoxDecoration(
+              color: Color(0xFF0AA3E3),
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+              boxShadow: [
                 BoxShadow(blurRadius: 18, offset: Offset(0, 10), color: Color(0x220AA3E3)),
               ],
             ),
             child: Icon(icon, color: Colors.white, size: 26),
           ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: selected ? const Color(0xFF0AA3E3) : const Color(0x99FFFFFF), fontSize: 10, fontWeight: FontWeight.w800)),
+          Text(label,
+              style: TextStyle(
+                color: selected ? const Color(0xFF0AA3E3) : const Color(0x99FFFFFF),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              )),
         ],
       ),
     );
